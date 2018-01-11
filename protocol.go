@@ -24,11 +24,11 @@ var (
 	resultStart        = []byte("VALUE ")
 	resultClientErrorPrefix = []byte("CLIENT_ERROR ")
 	resultServerErrorPrefix = []byte("SERVER_ERROR ")
-	resultBadCommand = []byte("bad command line")
-	resultKeyError = []byte("key is too long 250 limit")
-	resultValueError = []byte("value is too long, 1mb limit")
-	resultStoredError = []byte("stored error")
-	resultReadedError = []byte("read error")
+	resultBadCommand = []byte("bad command line\r\n")
+	resultKeyError = []byte("key is too long 250 limit\r\n")
+	resultValueError = []byte("value is too long, 1mb limit\r\n")
+	resultStoredError = []byte("stored error\r\n")
+	resultReadedError = []byte("read error\r\n")
 	GET_COMMAND ="get"
 	SET_COMMAND ="set"
 	GETS_COMMAND ="gets"
@@ -98,11 +98,12 @@ func (ascii *AsciiProtocol) process_command(source []byte,reader *bufio.Reader)(
 	if strings.EqualFold(command,SET_COMMAND) {
 		datas,err:=process_set_command(n,reader,tokens)
 		if err!=nil{
+			log.Println(string(datas))
 			buffer.Write(datas)
 		}else {
 			err = ascii.Storage.Put([]byte(tokens[1]), datas)
 			if err != nil {
-				log.Println(err)
+				log.Println("error put",err)
 				return resultStoredError,ErrServerError
 			}
 			buffer.Write(resultStored)
@@ -114,7 +115,7 @@ func (ascii *AsciiProtocol) process_command(source []byte,reader *bufio.Reader)(
 		log.Println("result:",result)
 		if err != nil{
 			log.Println("err",err)
-			return resultReadedError,ErrServerError
+			return nil,nil
 		}
 		if result==nil||len(result)<8 {
 			return nil,nil
@@ -126,7 +127,7 @@ func (ascii *AsciiProtocol) process_command(source []byte,reader *bufio.Reader)(
 		result, err := ascii.Storage.Get([]byte(tokens[1]))
 		if err != nil{
 			log.Println("err",err)
-			return resultReadedError,ErrServerError
+			return nil,nil
 		}
 		if result==nil||len(result)<8 {
 			return nil,nil
@@ -160,7 +161,6 @@ func process_set_command(n int,reader *bufio.Reader,tokens []string) (result []b
 	}
 
 	value = bytes.TrimRight(value, "\r\n")
-	log.Println("set command:",value)
 	flags,err:=strconv.ParseUint(tokens[2],0,32)
 	if err!=nil{
 		log.Println("strconv ParseUint error ",err)

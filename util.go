@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 func BytesToString(buf []byte) string {
@@ -40,6 +39,5 @@ func Int64ToBytes(i int64) []byte {
 func Unit32ToBytes(i uint32) []byte {
 	var buf = make([]byte, 4)
 	binary.BigEndian.PutUint32(buf,i)
-	fmt.Println(buf)
 	return buf
 }

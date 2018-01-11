@@ -21,6 +21,7 @@ type Item struct {
 }
 
 func main() {
+	log.SetFlags(log.Ldate|log.Lshortfile)
 	h:=flag.String("h","127.0.0.1","server ip")
 	p:=flag.String("p","11211","server port")
 	dir:=flag.String("dir","/Users/guming/dev/research/data/ldb","data dir")
@@ -73,7 +74,9 @@ func handleTcp(conn *net.TCPConn,proto Protocol){
 		if err != nil {
 			return
 		}
-
+		if len(source)<8{
+			return
+		}
 		back,err:=proto.process_command(source,reader)
 		if err!=nil{
 			log.Println(err)
