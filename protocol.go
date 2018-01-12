@@ -7,6 +7,7 @@ import (
 	"log"
 	"strconv"
 	"errors"
+	"time"
 )
 
 var (
@@ -65,6 +66,7 @@ var(
 	//only if no one else has updated since I last fetched it."
 	COMMAND_TOKEN=0
 	MAX_VALUE_SIZE=1024*1024
+	TIME_THRITY_DAYS=60*60*24*30
 
 )
 
@@ -96,16 +98,17 @@ func (ascii *AsciiProtocol) process_command(source []byte,reader *bufio.Reader)(
 
 	var buffer bytes.Buffer
 	if strings.EqualFold(command,SET_COMMAND) {
-		datas,err:=process_set_command(n,reader,tokens)
+		datas,expiration,err:=process_set_command(n,reader,tokens)
 		if err!=nil{
 			log.Println(string(datas))
 			buffer.Write(datas)
 		}else {
-			err = ascii.Storage.Put([]byte(tokens[1]), datas)
+			err = ascii.Storage.Put([]byte(tokens[1]), datas,expiration)
 			if err != nil {
 				log.Println("error put",err)
 				return resultStoredError,ErrServerError
 			}
+
 			buffer.Write(resultStored)
 		}
 	}
@@ -146,48 +149,56 @@ func tokenize_command(str []byte) (tokens []string,n int){
 	return
 }
 
-func process_set_command(n int,reader *bufio.Reader,tokens []string) (result []byte,err error){
+func process_set_command(n int,reader *bufio.Reader,tokens []string) (result []byte,expiration32 int64,err error){
 	if(n<MIN_TOKENS){
-		return resultBadCommand,ErrClientError
+		return resultBadCommand,-1,ErrClientError
 	}
 	var buffer_persistence bytes.Buffer
 	value, err := reader.ReadBytes('\n')
 	if err != nil {
 		log.Println("reader error ",err)
-		return resultBadCommand,ErrServerError
+		return resultBadCommand,-1,ErrServerError
 	}
 	if len(value)>MAX_VALUE_SIZE||len(value)<=0{
-		return resultValueError,ErrClientError
+		return resultValueError,-1,ErrClientError
 	}
 
 	value = bytes.TrimRight(value, "\r\n")
 	flags,err:=strconv.ParseUint(tokens[2],0,32)
+	log.Println("flags:",flags)
 	if err!=nil{
 		log.Println("strconv ParseUint error ",err)
-		return resultBadCommand,ErrClientError
+		return resultBadCommand,-1,ErrClientError
 	}
 	flags32:=uint32(flags)
 	expiration,err:=strconv.ParseInt(tokens[3],0,32)
+	log.Println("expiration:",expiration)
+	//if time is offset then change it to the true time
+	if expiration>0&&expiration<int64(TIME_THRITY_DAYS){
+		log.Println("unix curr time:",time.Now().Unix())
+		expiration=expiration+time.Now().Unix()
+	}
+
 	if err!=nil{
 		log.Println("strconv ParseUint error ",err)
-		return resultBadCommand,ErrClientError
+		return resultBadCommand,-1,ErrClientError
 	}
-	expiration32:=int32(expiration)
+	//expiration32=int32(expiration)
 	item:=&Item{
 		Key:tokens[1],
 		Flags:flags32,
-		Expiration:expiration32,
+		Expiration:expiration,
 		Value:value,
 	}
 	buffer_persistence.Write(Unit32ToBytes(item.Flags))
-	buffer_persistence.Write(Int32ToBytes(item.Expiration))
+	buffer_persistence.Write(Int64ToBytes(item.Expiration))
 	buffer_persistence.Write(value)
-	return buffer_persistence.Bytes(),nil
+	return buffer_persistence.Bytes(),item.Expiration,nil
 }
 
 func writebuffer(buffer *bytes.Buffer, key string, result []byte) {
 	flags:=result[0:4]
-	value:=result[8:]
+	value:=result[12:]
 	buffer.Write(resultStart)
 	buffer.WriteString(key)
 	buffer.Write(space)
