@@ -10,7 +10,7 @@ import (
 var btreeDegree = 32
 
 type DataStorage interface {
-	InitDB(dir string) bool
+	//InitDB(dir string) bool
 	Put(key []byte,value []byte,expiration int64) error
 	Get(key []byte) (value []byte,err error)
 	Close()
@@ -62,16 +62,25 @@ func (lds *LevelDbStorage) Get(key []byte) (value []byte,err error){
 		inode := item.(*Node)
 		log.Println("expiration:",inode.expiration)
 		if inode.expiration>0 && cur_time > inode.expiration {
+			err:=lds.Db.Delete(key,nil)
+			if err!=nil{
+				log.Println("after expiration remove error:",err,string(key))
+			}
 			return nil, nil
 		}
 	}
 	value,err=lds.Db.Get(key,nil)
+
 	log.Println(value)
 	if err==nil && len(value)>12{
 		expir:=value[4:12]
 		expir_int:=int64(BytesToUint64(expir))
 		log.Println("expiration:",expir_int)
 		if expir_int>0 && cur_time>expir_int{
+			err:=lds.Db.Delete(key,nil)
+			if err!=nil{
+				log.Println("after expiration remove error:",err,string(key))
+			}
 			return nil,nil
 		}
 	}

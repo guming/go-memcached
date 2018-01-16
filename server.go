@@ -5,6 +5,8 @@ import (
 	"net"
 	"flag"
 	"log"
+	"strings"
+	"github.com/coreos/etcd/raft/raftpb"
 )
 
 
@@ -28,6 +30,13 @@ func main() {
 	p:=flag.String("p","11211","server port")
 	dir:=flag.String("dir","/Users/guming/dev/research/data/ldb","data dir")
 	protocol:=flag.String("protocol","ascii","trans protocol")
+	//raft params
+	cluster:=flag.String("cluster", "http://127.0.0.1:12379", "comma separated cluster peers")
+	id := flag.Int("id", 1, "node ID")
+	kvport := flag.Int("port", 12379, "key-value server port")
+	join := flag.Bool("join", false, "join an existing cluster")
+
+
 	flag.Parse()
 	var tcpAddr *net.TCPAddr
 	tcpAddr, _ = net.ResolveTCPAddr("tcp", *h+":"+*p)
@@ -42,8 +51,22 @@ func main() {
 		log.Println("not support the protocol ",*protocol)
 		return
 	}
+	//raftserver:=&RaftServer{storage:storage}
+	log.Println("raft starting...")
+	//kvstore:=raftserver.StartRaft(*id,*cluster,*join,*kvport)
+	proposeC := make(chan []byte)
+	defer close(proposeC)
+	confChangeC := make(chan raftpb.ConfChange)
+	defer close(confChangeC)
+	commitC,errorC:=newRaftNode(*id,strings.Split(*cluster,","),*join,proposeC,confChangeC)
+	kvstore :=&RaftKVStore{proposeC:proposeC,KvStore:storage}
+	go kvstore.readCommits(commitC, errorC)
+	log.Println("goroutine readcommit")
+	//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
+	go ServeHttpKVAPI(*kvport, confChangeC, errorC)
+	log.Println("raft starting.")
 	proto:=&AsciiProtocol{
-		Storage:storage,
+		Storage:kvstore,
 	}
 	if !canuse{
 		return
