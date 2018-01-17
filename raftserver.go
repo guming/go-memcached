@@ -285,6 +285,8 @@ func (rc *raftNode) publishEntries(ents []raftpb.Entry) bool {
 				break
 			}
 			s := ents[i].Data
+			//todo commit
+
 			select {
 			case rc.commitC <- &s:
 			case <-rc.stopc:

@@ -5,8 +5,8 @@ import (
 	"net"
 	"flag"
 	"log"
-	"strings"
 	"github.com/coreos/etcd/raft/raftpb"
+	"strings"
 )
 
 
@@ -52,8 +52,8 @@ func main() {
 		return
 	}
 	//raftserver:=&RaftServer{storage:storage}
-	log.Println("raft starting...")
 	//kvstore:=raftserver.StartRaft(*id,*cluster,*join,*kvport)
+	log.Println("raft starting...")
 	proposeC := make(chan []byte)
 	defer close(proposeC)
 	confChangeC := make(chan raftpb.ConfChange)
@@ -64,7 +64,7 @@ func main() {
 	log.Println("goroutine readcommit")
 	//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
 	go ServeHttpKVAPI(*kvport, confChangeC, errorC)
-	log.Println("raft starting.")
+
 	proto:=&AsciiProtocol{
 		Storage:kvstore,
 	}
