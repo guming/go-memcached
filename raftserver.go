@@ -18,7 +18,7 @@ import (
 	"errors"
 	"github.com/coreos/etcd/etcdserver/stats"
 	"github.com/coreos/etcd/pkg/types"
-	"golang.org/x/net/context"
+	"context"
 )
 
 
@@ -234,8 +234,7 @@ func (rc *raftNode) startRaft(){
 	}
 	rc.node = raft.StartNode(c, startPeers)
 	//stats server init
-	ss := &stats.ServerStats{}
-	ss.Initialize()
+	ss := stats.NewServerStats("","")
 	rc.transport = &rafthttp.Transport{
 		ID:          types.ID(rc.id),
 		ClusterID:   0x1000,
@@ -338,6 +337,8 @@ func (rc *raftNode) Process(ctx context.Context, m raftpb.Message) error {
 func (rc *raftNode) IsIDRemoved(id uint64) bool { return false }
 func (rc *raftNode) ReportUnreachable(id uint64) {}
 func (rc *raftNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {}
+
+
 
 func (rc *raftNode) serveChannels() {
 	ticker := time.NewTicker(100 * time.Millisecond)
