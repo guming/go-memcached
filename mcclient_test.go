@@ -7,12 +7,13 @@ import (
 	"github.com/google/btree"
 	"flag"
 	"bytes"
+	"time"
 )
 
 func TestClient_Get_get(t *testing.T) {
-	mc := memcached_client.New("127.0.0.1:11211")
-	//mc.Set(&memcached_client.Item{Key: "foo", Value: []byte("my value simple3"),Flags:32,Expiration:60})
-
+	mc := memcached_client.New("192.168.7.133:11211")
+	mc.Set(&memcached_client.Item{Key: "foo", Value: []byte("my value simple3"),Flags:32,Expiration:60})
+	time.Sleep(10*time.Millisecond)
 	fmt.Println("-----")
 	it, err := mc.Get("foo")
 	if err!=nil||it==nil{
