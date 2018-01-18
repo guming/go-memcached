@@ -17,7 +17,7 @@
 * for i in {1..10}; do echo "get t_$i\r\n"|nc 192.168.7.139 11211;done;
 
 ### TODO
-#### m/s struct using binlog without raft
+#### master/slave using binlog without raft
 #### add ascii protocol commands:incr decr add
 #### complete the unit testing
 #### bechmark
