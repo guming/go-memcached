@@ -28,7 +28,7 @@ func main() {
 	log.SetFlags(log.Ldate|log.Lshortfile)
 	h:=flag.String("h","127.0.0.1","server ip")
 	p:=flag.String("p","11211","server port")
-	dir:=flag.String("dir","/data/ldb1","data dir")
+	dir:=flag.String("dir","/Users/guming/dev/research/data/ldb","data dir")
 	protocol:=flag.String("protocol","ascii","trans protocol")
 	//raft params
 	cluster:=flag.String("cluster", "http://127.0.0.1:12379", "comma separated cluster peers")

@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/coreos/etcd/raft/raftpb"
-	"strings"
 	"sync"
 	"encoding/gob"
 	"bytes"
@@ -32,19 +31,19 @@ type RaftServer struct{
 	storage DataStorage
 }
 
-func (raft *RaftServer)StartRaft(id int,cluster string,join bool,kvport int) *RaftKVStore{
-	proposeC := make(chan []byte)
-	defer close(proposeC)
-	confChangeC := make(chan raftpb.ConfChange)
-	defer close(confChangeC)
-	commitC,errorC:=newRaftNode(id,strings.Split(cluster,","),join,proposeC,confChangeC)
-	kvstore :=&RaftKVStore{proposeC:proposeC,KvStore:raft.storage}
-	go kvstore.readCommits(commitC, errorC)
-	log.Println("goroutine readcommit")
-	//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
-	ServeHttpKVAPI(kvport, confChangeC, errorC)
-	return kvstore
-}
+//func (raft *RaftServer)StartRaft(id int,cluster string,join bool,kvport int) *RaftKVStore{
+//	proposeC := make(chan []byte)
+//	defer close(proposeC)
+//	confChangeC := make(chan raftpb.ConfChange)
+//	defer close(confChangeC)
+//	commitC,errorC:=newRaftNode(id,strings.Split(cluster,","),join,proposeC,confChangeC)
+//	kvstore :=&RaftKVStore{proposeC:proposeC,KvStore:raft.storage}
+//	go kvstore.readCommits(commitC, errorC)
+//	log.Println("goroutine readcommit")
+//	//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
+//	//ServeHttpKVAPI(kvport, confChangeC, errorC)
+//	return kvstore
+//}
 
 type RaftKVStore struct{
 	proposeC    chan<- []byte
