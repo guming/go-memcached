@@ -60,8 +60,8 @@ func (lds *LevelDbStorage) Get(key []byte) (value []byte,err error){
 	item:=lds.Index.Get(node)
 	if item!=nil {
 		inode := item.(*Node)
-		log.Println("expiration:",inode.expiration)
 		if inode.expiration>0 && cur_time > inode.expiration {
+			log.Println("expiration index:",inode.expiration)
 			err:=lds.Db.Delete(key,nil)
 			if err!=nil{
 				log.Println("after expiration remove error:",err,string(key))
@@ -75,8 +75,8 @@ func (lds *LevelDbStorage) Get(key []byte) (value []byte,err error){
 	if err==nil && len(value)>12{
 		expir:=value[4:12]
 		expir_int:=int64(BytesToUint64(expir))
-		log.Println("expiration:",expir_int)
 		if expir_int>0 && cur_time>expir_int{
+			log.Println("expiration leveldb:",expir_int)
 			err:=lds.Db.Delete(key,nil)
 			if err!=nil{
 				log.Println("after expiration remove error:",err,string(key))

@@ -58,8 +58,12 @@ func main() {
 	defer close(proposeC)
 	confChangeC := make(chan raftpb.ConfChange)
 	defer close(confChangeC)
-	commitC,errorC:=newRaftNode(*id,strings.Split(*cluster,","),*join,proposeC,confChangeC)
-	kvstore :=&RaftKVStore{proposeC:proposeC,KvStore:storage}
+	var kvstore *RaftKVStore
+	vmem:=make(map [string][]byte)
+	getSnapshot := func() ([]byte, error) { return kvstore.getSnapshot() }
+	commitC,errorC,snapshotterReady:=newRaftNode(*id,strings.Split(*cluster,","),*join,proposeC,confChangeC,getSnapshot)
+	kvstore =&RaftKVStore{proposeC:proposeC,KvStore:storage,snapshotter:<-snapshotterReady,mem:vmem}
+	kvstore.readCommits(commitC, errorC)
 	go kvstore.readCommits(commitC, errorC)
 	log.Println("goroutine readcommit")
 	//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
