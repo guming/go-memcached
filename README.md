@@ -6,7 +6,7 @@
 
 
 
-###test
+### test
 1.go build
 2.start three process
 *  ./go-memcached -h 192.168.7.133 -cluster=http://192.168.7.133:11213,http://192.168.7.139:11213,http://192.168.7.136:11213 -port 11214 -id 1
