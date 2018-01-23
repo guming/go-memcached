@@ -1,4 +1,4 @@
-package memcached_client
+package client
 
 import (
 	"time"
