@@ -15,9 +15,13 @@
 
 * for i in {1..10}; do echo "set t_$i 0 0 4\r\n1002\r\n"|nc 192.168.7.133 11211;done;
 * for i in {1..10}; do echo "get t_$i\r\n"|nc 192.168.7.139 11211;done;
+#### master/slave using binlog without raft
+##### 本机启动
+*  ./go-memcached -mode master -p 11211
+*  ./go-memcached -mode slave -dir /path/to/ldb -p 11212
 
 ### TODO
-#### master/slave using binlog without raft
+
 #### add ascii protocol commands:incr decr add
 #### complete the unit testing
-#### bechmark
+#### benchmark
