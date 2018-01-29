@@ -6,6 +6,8 @@ import (
 	"time"
 	"log"
 	"bytes"
+	"memcached/binlog"
+	"sync"
 )
 var btreeDegree = 32
 
@@ -19,6 +21,9 @@ type DataStorage interface {
 type LevelDbStorage struct{
 	Db *leveldb.DB
 	Index *btree.BTree
+	blog *binlog.EventLogSet
+	synclog *binlog.EventLogSet
+	mu sync.Mutex
 }
 
 type Node struct{
@@ -26,6 +31,9 @@ type Node struct{
 	key []byte
 }
 func (n *Node) Less(than btree.Item) bool{
+	if than ==nil{
+		return true
+	}
 	return bytes.Compare(n.key,than.(*Node).key)==-1
 }
 
@@ -36,6 +44,9 @@ func (lds *LevelDbStorage) InitDB(dir string) bool {
 	}
 	lds.Db=db
 	lds.Index = btree.New(btreeDegree)
+	blogname:=dir+"/log.bin"
+	lds.blog=binlog.NewEventSet(blogname)
+	lds.synclog=binlog.LoadEventSet(blogname)
 	return true
 }
 
@@ -46,13 +57,21 @@ func (lds *LevelDbStorage) Put(key []byte,value []byte,expiration int64) error{
 			key:key,
 			expiration:expiration,
 		}
+		lds.mu.Lock()
 		lds.Index.ReplaceOrInsert(node)
+		lds.mu.Unlock()
+		eventheader:=binlog.EventHeader{int32(len(key)),'0',0,int32(len(value)+len(key)),01}
+		var buffer bytes.Buffer
+		buffer.Write(key)
+		buffer.Write(value)
+		event:=binlog.Event{eventheader,buffer.Bytes()}
+		lds.blog.WriteEvent(event)
 	}
 	return err
 }
 
 func (lds *LevelDbStorage) Get(key []byte) (value []byte,err error){
-	log.Println("unix curr time:",time.Now().Unix())
+	//log.Println("unix curr time:",time.Now().Unix())
 	cur_time:=time.Now().Unix()
 	node:=&Node{
 		key:key,
@@ -71,7 +90,7 @@ func (lds *LevelDbStorage) Get(key []byte) (value []byte,err error){
 	}
 	value,err=lds.Db.Get(key,nil)
 
-	log.Println(value)
+	//log.Println(value)
 	if err==nil && len(value)>12{
 		expir:=value[4:12]
 		expir_int:=int64(BytesToUint64(expir))
@@ -89,4 +108,6 @@ func (lds *LevelDbStorage) Get(key []byte) (value []byte,err error){
 
 func (lds *LevelDbStorage) Close(){
 	lds.Db.Close()
+	lds.blog.Close()
+	lds.synclog.Close()
 }

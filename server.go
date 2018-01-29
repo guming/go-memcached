@@ -26,23 +26,25 @@ type Item struct {
 func main() {
 
 	log.SetFlags(log.Ldate|log.Lshortfile)
+	id := flag.Int("id", 1, "node ID")
 	h:=flag.String("h","127.0.0.1","server ip")
 	p:=flag.String("p","11211","server port")
 	dir:=flag.String("dir","/Users/guming/dev/research/data/ldb","data dir")
 	protocol:=flag.String("protocol","ascii","trans protocol")
 	//raft params
 	cluster:=flag.String("cluster", "http://127.0.0.1:12379", "comma separated cluster peers")
-	id := flag.Int("id", 1, "node ID")
 	kvport := flag.Int("cport", 12379, "key-value server port")
 	join := flag.Bool("join", false, "join an existing cluster")
-
-
+	mode := flag.String("mode", "default", "mode select: default|cluster|master|slave")
 	flag.Parse()
+
 	var tcpAddr *net.TCPAddr
 	tcpAddr, _ = net.ResolveTCPAddr("tcp", *h+":"+*p)
 	tcpListener, _ := net.ListenTCP("tcp", tcpAddr)
 	log.Println("server is starting ",*h,*p)
 	log.Println("service data dir is ",*dir)
+
+
 	storage:=&LevelDbStorage{}
 	canuse:=storage.InitDB(*dir)
 	if *protocol=="ascii"{
@@ -51,30 +53,51 @@ func main() {
 		log.Println("not support the protocol ",*protocol)
 		return
 	}
-	//raftserver:=&RaftServer{storage:storage}
-	//kvstore:=raftserver.StartRaft(*id,*cluster,*join,*kvport)
-	log.Println("raft starting...")
-	proposeC := make(chan []byte)
-	defer close(proposeC)
-	confChangeC := make(chan raftpb.ConfChange)
-	defer close(confChangeC)
-	var kvstore *RaftKVStore
-	vmem:=make(map [string][]byte)
-	getSnapshot := func() ([]byte, error) { return kvstore.getSnapshot() }
-	commitC,errorC,snapshotterReady:=newRaftNode(*id,strings.Split(*cluster,","),*join,proposeC,confChangeC,getSnapshot)
-	kvstore =&RaftKVStore{proposeC:proposeC,KvStore:storage,snapshotter:<-snapshotterReady,mem:vmem}
-	kvstore.readCommits(commitC, errorC)
-	go kvstore.readCommits(commitC, errorC)
-	log.Println("goroutine readcommit")
-	//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
-	go ServeHttpKVAPI(*kvport, confChangeC, errorC)
-
-	proto:=&AsciiProtocol{
-		Storage:kvstore,
-	}
 	if !canuse{
+		log.Println(canuse)
 		return
 	}
+	//raftserver:=&RaftServer{storage:storage}
+	//kvstore:=raftserver.StartRaft(*id,*cluster,*join,*kvport)
+	var proto Protocol
+	if strings.EqualFold(*mode,"cluster") {
+		log.Println("raft starting...")
+		proposeC := make(chan []byte)
+		defer close(proposeC)
+		confChangeC := make(chan raftpb.ConfChange)
+		defer close(confChangeC)
+		var kvstore *RaftKVStore
+		vmem := make(map[string][]byte)
+		getSnapshot := func() ([]byte, error) { return kvstore.getSnapshot() }
+		commitC, errorC, snapshotterReady := newRaftNode(*id, strings.Split(*cluster, ","), *join, proposeC, confChangeC, getSnapshot)
+		kvstore = &RaftKVStore{proposeC: proposeC, KvStore: storage, snapshotter: <-snapshotterReady, mem: vmem}
+		kvstore.readCommits(commitC, errorC)
+		go kvstore.readCommits(commitC, errorC)
+		log.Println("goroutine readcommit")
+		//runStateToKVStore(proposeC, commitC,KVStoreDB,errorC)
+		go ServeHttpKVAPI(*kvport, confChangeC, errorC)
+		proto=&AsciiProtocol{
+			Storage:kvstore,
+		}
+	}else {
+		log.Println(canuse)
+		proto=&AsciiProtocol{
+			Storage:storage,
+			readflag:false,
+		}
+		if strings.EqualFold(*mode,"master"){
+			//todo
+			go StartSync()
+
+		}
+		if strings.EqualFold(*mode,"slave"){
+			proto.SetReadOnly(true)
+			//todo
+			go StartToSync(storage)
+
+		}
+	}
+
 	defer tcpListener.Close()
 	defer storage.Close()
 	for {
@@ -82,7 +105,7 @@ func main() {
 		if err != nil {
 			continue
 		}
-		log.Println("client connected : " + tcpConn.RemoteAddr().String())
+		//log.Println("client connected : " + tcpConn.RemoteAddr().String())
 
 		go handleTcp(tcpConn,proto)
 	}
@@ -90,9 +113,9 @@ func main() {
 
 
 func handleTcp(conn *net.TCPConn,proto Protocol){
-	ipStr := conn.RemoteAddr().String()
+	//ipStr := conn.RemoteAddr().String()
 	defer func() {
-		log.Println("disconn :" + ipStr)
+		//log.Println("disconn :" + ipStr)
 		conn.Close()
 	}()
 

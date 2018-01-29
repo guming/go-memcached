@@ -73,10 +73,21 @@ var(
 type Protocol interface {
 	IsBinaryProtocol() bool
 	process_command(source []byte,reader *bufio.Reader)([]byte,error)
+	IsReadOnly() bool
+	SetReadOnly(flag bool)
 }
 
 type AsciiProtocol struct{
 	Storage DataStorage
+	readflag bool
+}
+
+func (ascii *AsciiProtocol) SetReadOnly(flag bool) {
+	ascii.readflag=flag
+}
+
+func (ascii *AsciiProtocol) IsReadOnly() bool {
+	return ascii.readflag
 }
 
 func (ascii *AsciiProtocol) IsBinaryProtocol() bool {
@@ -97,25 +108,27 @@ func (ascii *AsciiProtocol) process_command(source []byte,reader *bufio.Reader)(
 	}
 
 	var buffer bytes.Buffer
-	if strings.EqualFold(command,SET_COMMAND) {
-		datas,expiration,err:=process_set_command(n,reader,tokens)
-		if err!=nil{
-			log.Println(string(datas))
-			buffer.Write(datas)
-		}else {
-			err = ascii.Storage.Put([]byte(tokens[1]), datas,expiration)
+	if(!ascii.IsReadOnly()) {
+		if strings.EqualFold(command, SET_COMMAND) {
+			datas, expiration, err := process_set_command(n, reader, tokens)
 			if err != nil {
-				log.Println("error put",err)
-				return resultStoredError,ErrServerError
-			}
+				log.Println(string(datas))
+				buffer.Write(datas)
+			} else {
+				err = ascii.Storage.Put([]byte(tokens[1]), datas, expiration)
+				if err != nil {
+					log.Println("error put", err)
+					return resultStoredError, ErrServerError
+				}
 
-			buffer.Write(resultStored)
+				buffer.Write(resultStored)
+			}
 		}
 	}
 	if strings.EqualFold(tokens[COMMAND_TOKEN],GET_COMMAND) {
-		log.Println("get command",tokens[1])
+		//log.Println("get command",tokens[1])
 		result, err := ascii.Storage.Get([]byte(tokens[1]))
-		log.Println("result:",result)
+		//log.Println("result:",result)
 		if err != nil{
 			log.Println("err",err)
 			return nil,nil
@@ -126,7 +139,7 @@ func (ascii *AsciiProtocol) process_command(source []byte,reader *bufio.Reader)(
 		writebuffer(&buffer,tokens[1],result)
 	}
 	if strings.EqualFold(tokens[COMMAND_TOKEN], GETS_COMMAND) {
-		log.Println("gets command",tokens[1])
+		//log.Println("gets command",tokens[1])
 		result, err := ascii.Storage.Get([]byte(tokens[1]))
 		if err != nil{
 			log.Println("err",err)
@@ -165,17 +178,17 @@ func process_set_command(n int,reader *bufio.Reader,tokens []string) (result []b
 
 	value = bytes.TrimRight(value, "\r\n")
 	flags,err:=strconv.ParseUint(tokens[2],0,32)
-	log.Println("flags:",flags)
+	//log.Println("flags:",flags)
 	if err!=nil{
 		log.Println("strconv ParseUint error ",err)
 		return resultBadCommand,-1,ErrClientError
 	}
 	flags32:=uint32(flags)
 	expiration,err:=strconv.ParseInt(tokens[3],0,32)
-	log.Println("expiration:",expiration)
+	//log.Println("expiration:",expiration)
 	//if time is offset then change it to the true time
 	if expiration>0&&expiration<int64(TIME_THRITY_DAYS){
-		log.Println("unix curr time:",time.Now().Unix())
+		//log.Println("unix curr time:",time.Now().Unix())
 		expiration=expiration+time.Now().Unix()
 	}
 

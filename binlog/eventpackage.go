@@ -25,6 +25,8 @@ func UnPackEvents(rbytes []byte) *list.List{
 			event := Event{EventHeader{Crc32:crc32}, values}
 			events.PushBack(event)
 			readcount += 19 + int64(lens)
+		}else{
+			break
 		}
 	}
 	log.Println("crc32:end")

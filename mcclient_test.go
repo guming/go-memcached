@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"testing"
-	"memcached/memcached-client"
+	"memcached/client"
 	"github.com/google/btree"
 	"flag"
 	"bytes"
@@ -11,11 +11,11 @@ import (
 )
 
 func TestClient_Get_get(t *testing.T) {
-	mc := memcached_client.New("127.0.0.1:11211")
-	//mc.Set(&memcached_client.Item{Key: "foo", Value: []byte("my value simple 127"),Flags:32,Expiration:60})
+	mc := client.New("127.0.0.1:11211")
+	mc.Set(&client.Item{Key: "foo3", Value: []byte("my value simple 127-1"),Flags:32,Expiration:3600})
 	time.Sleep(10*time.Millisecond)
 	fmt.Println("-----")
-	it, err := mc.Get("foo")
+	it, err := mc.Get("foo3")
 	if err!=nil||it==nil{
 		fmt.Println(err)
 	}else {
@@ -23,6 +23,7 @@ func TestClient_Get_get(t *testing.T) {
 	}
 
 }
+
 var btreeDegree1 = flag.Int("degree", 32, "B-Tree degree")
 
 type Node1 struct{
