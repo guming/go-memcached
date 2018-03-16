@@ -44,9 +44,8 @@ func (lds *LevelDbStorage) InitDB(dir string) bool {
 	}
 	lds.Db=db
 	lds.Index = btree.New(btreeDegree)
-	blogname:=dir+"/log.bin"
-	lds.blog=binlog.NewEventSet(blogname)
-	lds.synclog=binlog.LoadEventSet(blogname)
+	lds.blog=binlog.NewEventSet(dir)
+	lds.synclog=binlog.LoadEventSet(lds.blog.BLog.Filename)
 	return true
 }
 

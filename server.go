@@ -29,7 +29,7 @@ func main() {
 	id := flag.Int("id", 1, "node ID")
 	h:=flag.String("h","127.0.0.1","server ip")
 	p:=flag.String("p","11211","server port")
-	dir:=flag.String("dir","/Users/guming/dev/research/data/ldb","data dir")
+	dir:=flag.String("dir","/data/ldb","data dir")
 	protocol:=flag.String("protocol","ascii","trans protocol")
 	//raft params
 	cluster:=flag.String("cluster", "http://127.0.0.1:12379", "comma separated cluster peers")
@@ -87,7 +87,7 @@ func main() {
 		}
 		if strings.EqualFold(*mode,"master"){
 			//todo
-			go StartSync()
+			go StartSync(*dir,storage)
 
 		}
 		if strings.EqualFold(*mode,"slave"){
@@ -118,9 +118,7 @@ func handleTcp(conn *net.TCPConn,proto Protocol){
 		//log.Println("disconn :" + ipStr)
 		conn.Close()
 	}()
-
 	reader := bufio.NewReader(conn)
-
 	for {
 		source,err:= reader.ReadBytes('\n')
 		if err != nil {

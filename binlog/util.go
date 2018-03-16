@@ -1,6 +1,14 @@
 package binlog
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"strings"
+	"fmt"
+	"strconv"
+	"path/filepath"
+	"sort"
+	"os"
+)
 
 func BytesToString(buf []byte) string {
 	return string(buf)
@@ -34,4 +42,45 @@ func UnitToBytes(i uint16) []byte {
 	var buf = make([]byte, 2)
 	binary.BigEndian.PutUint16(buf,i)
 	return buf
+}
+
+var logarray []int64
+
+var current_logfile string
+
+func walkFunc(path string, info os.FileInfo,err error) error {
+	if info == nil {
+		return nil
+	}
+	if info.IsDir() {
+		return nil
+	} else {
+		str:=strings.Split(path,"/")
+		filename:=str[len(str)-1]
+		if strings.Contains(filename,".bin") {
+			str1:=strings.Split(filename,".")
+			fmt.Println(filename)
+			filename=str1[0]
+			idx,_:=strconv.Atoi(filename)
+			logarray=append(logarray,int64(idx))
+			current_logfile=path
+		}
+		return nil
+	}
+}
+
+func showMaxfileIdx(path string) (int64,string) {
+	err := filepath.Walk(path, walkFunc)
+	if err != nil {
+		fmt.Printf("filepath.Walk() error: %v\n", err)
+	}
+	sort.Slice(logarray, func(i, j int) bool {
+		return logarray[i] > logarray[j]
+	})
+	if len(logarray)>0 {
+		fmt.Printf("file idx:%d\r\n", logarray[0])
+		return logarray[0],current_logfile
+	}else{
+		return -1,current_logfile
+	}
 }

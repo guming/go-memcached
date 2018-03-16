@@ -10,6 +10,7 @@ import (
 	"memcached/binlog"
 	"sync"
 	"strconv"
+	"iodemo/util"
 )
 
 
@@ -22,8 +23,11 @@ func StartToSync(storage DataStorage) {
 		fmt.Println("dial error:", err)
 		return
 	}
+	offset_sync,eri:=storage.Get([]byte("mc_sync_offset"))
+	if offset_sync!=nil && eri==nil{
+		setOffset(util.BytesToInt64(offset_sync))
+	}
 	defer conn.Close()
-	fmt.Println("connected!")
 	go onMessageRecived(conn,storage)
 	go fetchLog(conn)
 	<-quitSemaphore
@@ -55,9 +59,9 @@ func getOffset() int64{
 }
 
 func onMessageRecived(conn net.Conn,storage DataStorage) {
-	fmt.Println("onMessageRecived!")
-	//conn.SetReadDeadline(time.Now().Add(2*time.Second))
+	log.Println("onMessageRecived!")
 	reader := bufio.NewReader(conn)
+	var buffer bytes.Buffer
 	for {
 		msg, err := reader.ReadBytes('\n')
 		if err != nil {
@@ -66,16 +70,25 @@ func onMessageRecived(conn net.Conn,storage DataStorage) {
 			break
 		}
 		msg = bytes.TrimRight(msg, "\r\n")
+		if len(msg)<=8{
+			continue
+		}
+		log.Println("msg is",string(msg))
 		offset_back:=BytesToInt64(msg)
 		if offset_back>getOffset(){
 			setOffset(offset_back)
 		}
 
-		msg, err = reader.ReadBytes('\n')
+		msg,err = reader.ReadBytes('\n')
+
 		msg = bytes.TrimRight(msg, "\r\n")
-		events:= binlog.UnPackEvents(msg)
+		buffer.Write(msg)
+		events,lestbytes:= binlog.UnPackEvents(buffer.Bytes())
+		buffer.Reset()
+		if lestbytes!=nil {
+			buffer.Write(lestbytes)
+		}
 		for iter := events.Front();iter != nil ;iter = iter.Next() {
-			fmt.Println("item:",string(iter.Value.(binlog.Event).EventData))
 			eventheader:=iter.Value.(binlog.Event).EventHeader
 			eventdata:=iter.Value.(binlog.Event).EventData
 			if len(eventdata)>0 {
